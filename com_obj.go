@@ -17,7 +17,10 @@ import (
 	"runtime"
 	"flag"
 	"runtime/pprof"
+	"stat_wraper/int_libs"
+	"github.com/hashicorp/logutils"
 )
+
 
 
 // TODO: flags for different concurrency modes
@@ -159,7 +162,6 @@ func read_write(fileName string, excel, workbooks *ole.IDispatch,  ) {
 
 		//var last_row int
 		last_row := last_row(worksheet)
-		fmt.Println(last_row)
 
 		//row := 112
 		//col := 2
@@ -274,7 +276,13 @@ func write_xlsx(excel, workbooks *ole.IDispatch) {
 
 	if len(stat_files) != 0 {
 		log.Println("[INFO]", len(stat_files), "files to proced in STAT dir")
-		// setction to call scripts
+		for _, file := range stat_files {
+			if strings.HasSuffix(file.Name(), ".tgz") {
+				log.Println("[INFO]", "extracting file=", stat_dir + file.Name())
+				targz.Untgz(stat_dir + file.Name(), stat_dir, true)
+			}
+		}
+		// section to call scripts
 		var concurrency string
 		concurrency = "parallel"
 		switch {
@@ -333,16 +341,20 @@ func write_xlsx(excel, workbooks *ole.IDispatch) {
 
 		read_write(last_report_file, excel, workbooks)
 	//	delete CSV csv_files fromm CSV dir
-		for _, file := range csv_files {
-			file_name := csv_dir + file.Name()
-			log.Println("[INFO]", "removing from CSV dir file=", file_name)
-			os.Remove(file_name)
+		if  ! *keepCSV {
+			for _, file := range csv_files {
+				file_name := csv_dir + file.Name()
+				log.Println("[INFO]", "removing from CSV dir file=", file_name)
+				os.Remove(file_name)
+			}
 		}
-
-		for _, file := range stat_files {
-			file_name := stat_dir + file.Name()
-			log.Println("[INFO]", "removing from STAT dir file=", file_name)
-			os.Remove(file_name)
+		if ! *keepSTAT {
+			stat_files, _ := ioutil.ReadDir(stat_dir)
+			for _, file := range stat_files {
+				file_name := stat_dir + file.Name()
+				log.Println("[INFO]", "removing from STAT dir file=", file_name)
+				os.Remove(file_name)
+			}
 		}
 
 	} else {
@@ -369,22 +381,48 @@ var help_message =
 
 
 
-var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file (for debug purpose only)")
 var help = flag.Bool("help", false, "show long help info")
+var keepCSV = flag.Bool("keep-csv", false, "don't delete CSV files after process")
+var keepSTAT = flag.Bool("keep-stat", false, "don't remove files in STAT after process")
 
 func main() {
+	//debug_levels := []logutils.LogLevel{"DEBUG", "WARN", "ERROR", "INFO"}
+	debug_levels := []string{"DEBUG", "WARN", "ERROR", "INFO"}
+	var debug_flag = flag.String("d", "INFO", "debug level, available levels: " +
+												strings.Join(debug_levels, " "))
 
 	flag.Parse()
+
+	// generate []logutils.LogLevel from []string
+	debug_levels_f := make([]logutils.LogLevel, len(debug_levels))
+	for _, level := range debug_levels {
+		debug_levels_f = append(debug_levels_f, logutils.LogLevel(level))
+	}
+
+	filter := &logutils.LevelFilter{
+		Levels: []logutils.LogLevel(debug_levels_f),
+		MinLevel: logutils.LogLevel(*debug_flag),
+		Writer: os.Stderr,
+	}
+
+	log.SetOutput(filter)
+
+
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
 		check(err)
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
-
 	}
+
 	if *help {
 		fmt.Println(help_message)
 		os.Exit(0)
+	}
+
+	if *keepCSV {
+		log.Println("[DEBUG]", "requested to keep CSV files")
 	}
 
 	ole.CoInitialize(0)

@@ -34,6 +34,9 @@ To avoid errors with **xlsx** files, it's possible to create it using [COM Inter
 - `Old format or invalid type library`
     - as workaround need to set regional settings on Windows to `en-US`
     - Too complicated to resolve in code [System.Globalization.CultureInfo](https://github.com/go-ole/go-ole/issues/145)
+- `panic: CoInitialize has not been called.`
+    - problem in access to file which is already open
+    - find in **TASK MANAGER** process **EXCEL** and kill it
 ## Dependencies
 [github.com/go-ole/go-ole](https://github.com/go-ole/go-ole)
 
