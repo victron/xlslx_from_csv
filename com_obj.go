@@ -37,8 +37,7 @@ var sheets_names = map[string]int{"graph": 1, "2G": 2, "3G": 3}
 
 func check(e error) {
 	if e != nil {
-		log.Println("[DEBUG]", "error=", e)
-		panic(e)
+		log.Panicln("[DEBUG]", "error=", e)
 	}
 }
 
@@ -122,7 +121,7 @@ func read_write(fileName string, excel, workbooks *ole.IDispatch,  ) {
 	//const xlExcel8 = 56
 
 	if ! check_xlsx_file(reports_dir + fileName, excel, workbooks) {	// TODO: move into main
-		os.Exit(15)
+		log.Panicln("[ERROR]", "xlsx file NOK, file=", reports_dir + fileName)
 	}
 
 	workbook, err := oleutil.CallMethod(workbooks, "Open", reports_dir + fileName)
@@ -150,8 +149,7 @@ func read_write(fileName string, excel, workbooks *ole.IDispatch,  ) {
 		case strings.HasSuffix(word, "_U"):
 			sheet_name = "3G"
 		default:
-			log.Println("[CRIT]", "headers in csv not as expected")
-			os.Exit(5)
+			log.Panicln("[ERROR]", "headers in csv not as expected")
 		}
 
 		// TODO: move to last_row func and compare numbers on both sheets
@@ -425,17 +423,21 @@ func main() {
 		log.Println("[DEBUG]", "requested to keep CSV files")
 	}
 
+	//------------------------------------------------
 	ole.CoInitialize(0)
+	defer ole.CoUninitialize()
+
 	unknown, _ := oleutil.CreateObject("Excel.Application")
 	excel, _ := unknown.QueryInterface(ole.IID_IDispatch)
+	defer excel.Release()
+
 	oleutil.PutProperty(excel, "Visible", false)
+	defer oleutil.CallMethod(excel, "Quit")
 
 	workbooks := oleutil.MustGetProperty(excel, "Workbooks").ToIDispatch()
+	defer workbooks.Release()
+
 	write_xlsx(excel, workbooks)
 	//read_write(cwd+"\\KPI_SGSN_ZAP_20170523_1000.xlsx", excel, workbooks, cwd + "\\CSV" + "\\Service=safmm_34.csv")
 	//showMethodsAndProperties(workbooks)
-	workbooks.Release()
-	oleutil.CallMethod(excel, "Quit")
-	excel.Release()
-	ole.CoUninitialize()
 }

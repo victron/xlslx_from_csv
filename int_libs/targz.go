@@ -12,8 +12,7 @@ import (
 
 func check(e error) {
 	if e != nil {
-		log.Println("[DEBUG]", "error=", e)
-		panic(e)
+		log.Panicln("[DEBUG]", "error=", e)
 	}
 }
 
