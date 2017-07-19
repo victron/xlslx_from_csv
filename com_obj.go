@@ -21,7 +21,7 @@ import (
 	"github.com/hashicorp/logutils"
 )
 
-
+var ver_string = "version = 0.2.1, build date = 2017-07-19"
 
 // TODO: flags for different concurrency modes
 
@@ -322,6 +322,16 @@ func write_xlsx(excel, workbooks *ole.IDispatch) {
 			wg.Wait()
 			log.Println("[INFO]", "finished all threads")
 
+			if ! *keepSTAT {
+				stat_files, _ := ioutil.ReadDir(stat_dir)
+				for _, file := range stat_files {
+					file_name := stat_dir + file.Name()
+					log.Println("[DEBUG]", "removing from STAT dir file=", file_name)
+					os.Remove(file_name)
+				}
+				log.Println("[INFO]", "revoved ALL files from STAT dir")
+			}
+
 		}
 
 	} else {
@@ -343,14 +353,6 @@ func write_xlsx(excel, workbooks *ole.IDispatch) {
 			for _, file := range csv_files {
 				file_name := csv_dir + file.Name()
 				log.Println("[INFO]", "removing from CSV dir file=", file_name)
-				os.Remove(file_name)
-			}
-		}
-		if ! *keepSTAT {
-			stat_files, _ := ioutil.ReadDir(stat_dir)
-			for _, file := range stat_files {
-				file_name := stat_dir + file.Name()
-				log.Println("[INFO]", "removing from STAT dir file=", file_name)
 				os.Remove(file_name)
 			}
 		}
@@ -378,18 +380,17 @@ var help_message =
 
 
 
-
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file (for debug purpose only)")
 var help = flag.Bool("help", false, "show long help info")
 var keepCSV = flag.Bool("keep-csv", false, "don't delete CSV files after process")
 var keepSTAT = flag.Bool("keep-stat", false, "don't remove files in STAT after process")
+var version = flag.Bool("v", false, "show version and exit")
 
 func main() {
 	//debug_levels := []logutils.LogLevel{"DEBUG", "WARN", "ERROR", "INFO"}
 	debug_levels := []string{"DEBUG", "WARN", "ERROR", "INFO"}
 	var debug_flag = flag.String("d", "INFO", "debug level, available levels: " +
 												strings.Join(debug_levels, " "))
-
 	flag.Parse()
 
 	// generate []logutils.LogLevel from []string
@@ -416,6 +417,11 @@ func main() {
 
 	if *help {
 		fmt.Println(help_message)
+		os.Exit(0)
+	}
+
+	if *version {
+		fmt.Println(ver_string)
 		os.Exit(0)
 	}
 
