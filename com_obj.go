@@ -21,7 +21,7 @@ import (
 	"github.com/hashicorp/logutils"
 )
 
-var ver_string = "version = 0.2.1, build date = 2017-07-19"
+var ver_string = "version = 0.2.2, build date = 2017-07-21"
 
 // TODO: flags for different concurrency modes
 

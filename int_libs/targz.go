@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"archive/tar"
 	"io"
+	"path/filepath"
 )
 
 func check(e error) {
@@ -17,7 +18,7 @@ func check(e error) {
 }
 
 // extract  .tgz files
-func untgz(src, dst_dir string) {
+func untgz(src, dst_dir string) error {
 	fi, err := os.Open(src)
 	check(err)
 	defer fi.Close()
@@ -38,19 +39,28 @@ func untgz(src, dst_dir string) {
 			break
 		}
 		check(err)
-		fmt.Printf("get from archive %s:\n", hdr.Name)
+		path := filepath.Join(dst_dir, hdr.Name)
+		info := hdr.FileInfo()
+		log.Println("[DEBUG]", "get from archive", hdr.Name)
+		if info.IsDir() {
+			err = os.MkdirAll(path, info.Mode())
+			check(err)
+			continue
+		}
+
 		fileContents, err := ioutil.ReadAll(tr)
 		check(err)
 		err = ioutil.WriteFile(dst_dir + hdr.Name, fileContents, 0644)
 		check(err)
 	}
-
+	return error(nil)
 }
 
 // wrapper around func untgz(src, dst_dir string)
 // just with functionality to delete src file
 func Untgz(src, dst_dir string, del_src bool) {
-	untgz(src, dst_dir)
+	err := untgz(src, dst_dir)
+	check(err)
 	if del_src {
 		err := os.Remove(src)
 		check(err)
