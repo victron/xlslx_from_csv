@@ -1,4 +1,4 @@
-package targz
+package int_libs
 
 import (
 	"compress/gzip"

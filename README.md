@@ -4,11 +4,11 @@
 just a simple automation of work. 
 `wxp.pl` - script parsing stat files witch located in `STAT` dir, and creates csv files and put them into `CSV` dir.
 After those action need to create **xlsx**  files. 
-To avoid errors with **xlsx** files, it's possible to create it using [COM Interface](https://msdn.microsoft.com/en-us/library/windows/desktop/ff485850(v=vs.85).aspx)
+~~To avoid errors with **xlsx** files, it's possible to create it using [COM Interface](https://msdn.microsoft.com/en-us/library/windows/desktop/ff485850(v=vs.85).aspx) -~~
 
 ## Requirements
-- Only Windows platform (in reason **COM**)
-- installed MS Office
+~~- Only Windows platform (in reason **COM**)~~
+~~- installed MS Office~~
 - `wxp.pl` - perl script ()
 - configuration files for perl script 
     - hardcoded in code 
