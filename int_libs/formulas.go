@@ -2,7 +2,7 @@ package int_libs
 
 import (
 	"strconv"
-	"log"
+	//"log"
 )
 
 func Formulas2G(row_int int, column string) string {
@@ -31,7 +31,7 @@ func Formulas2G(row_int int, column string) string {
 		formula = "=AB" + row + "*8/1024/900"
 	}
 	
-	log.Println("[DEBUG]", "result 2G formula=", formula)
+	//log.Println("[DEBUG]", "result 2G formula=", formula)
 	return formula
 }
 
@@ -68,6 +68,6 @@ func Formulas3G(row_int int, column string) string {
 		//=AP2+AQ2
 		formula = "=AP" + row + "+AQ" + row
 	}
-	log.Println("[DEBUG]", "result 3G formula=", formula)
+	//log.Println("[DEBUG]", "result 3G formula=", formula)
 	return formula
 }

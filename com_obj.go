@@ -12,25 +12,31 @@ import (
 	//"golang.org/x/tools/godoc"
 	"sync"
 	"runtime"
-	"flag"
-	"runtime/pprof"
+	//"flag"
+	//"runtime/pprof"
 	"stat_wraper/int_libs"
 	"github.com/hashicorp/logutils"
 	"github.com/xuri/excelize"
 	//"github.com/tealeg/xlsx"
 	"strconv"
+	//"golang.org/x/crypto/ssh"
+	"time"
 )
 
-var ver_string = "version = 0.3.0, build date = 2017-10-20"
-
-// TODO: flags for different concurrency modes
+const ver_string = "version = 0.4.0, build date = 2017-11-19"
+const wait_time = time.Minute
 
 var cwd, _ = os.Getwd()
 var reports_dir = cwd + "\\REPORTS\\"
-var scripts_dir  = cwd + "\\SCRIPTS\\"
+var scripts_dir = cwd + "\\SCRIPTS\\"
 var csv_dir = cwd + "\\CSV\\"
 var stat_dir = cwd + "\\STAT\\"
-var debug_levels = []string{"DEBUG", "INFO", "WARN", "ERROR"}
+var debug_levels = []string{"DEBUG", "INFO", "WARN", "ERROR", "FATAL"}
+// at that moment hardcoded dependency in main{}
+var intervals = map[int][]int{15: {0, 15, 30, 45}, 30: {15, 45}, 60: {45}}
+
+var server int_libs.SiteAuthen
+var connect int_libs.Connection
 
 var sheets_ids = map[int]string{1: "graph", 2: "2G", 3: "3G"}
 var sheets_names = map[string]int{"graph": 1, "2G": 2, "3G": 3}
@@ -41,19 +47,19 @@ func check(e error) {
 	}
 }
 
-func set_site_name() string{
+func set_site_name() string {
 	reports_files, _ := ioutil.ReadDir(reports_dir)
 	var site_name string
 	if len(reports_files) == 0 {
 		fmt.Println("previous reports not found in \"REPORTS\" dir. \n" +
 			"Need to know SiteName. (for example: KIE1)")
 		fmt.Print("SiteName: ")
-		fmt.Scanf("%s", &site_name)
+		fmt.Scanf("%s\n", &site_name)
+		log.Println("[DEBUG]", "user input:", site_name)
+		//fmt.Scan(&site_name)
 	}
 	return site_name
 }
-
-
 
 // creates new report based on template or previous report
 func ReportCreator(site_name string) {
@@ -61,7 +67,7 @@ func ReportCreator(site_name string) {
 	file_name_prefix := "KPI-SGSN_"
 	if len(reports_files) == 0 {
 		file_name_prefix = "KPI-SGSN_" + site_name + "_"
-		log.Println("[DEBUG]", "opening file=", scripts_dir + "SGSN_template.xlsx")
+		log.Println("[DEBUG]", "opening file=", scripts_dir+"SGSN_template.xlsx")
 		templateFile, err := excelize.OpenFile(scripts_dir + "SGSN_template.xlsx")
 		check(err)
 		templateFile.SetCellValue("graph", "J1", site_name)
@@ -70,9 +76,9 @@ func ReportCreator(site_name string) {
 		templateFile.SaveAs(reports_dir + last_report_file)
 	} else {
 		// DONE: ~$KPI-SGSN_KIE#1_20170608_0600.xlsx ignore such files
-		var allowed_files  []os.FileInfo
+		var allowed_files []os.FileInfo
 		for _, file := range reports_files {
-			if  strings.HasPrefix(file.Name(), file_name_prefix){
+			if strings.HasPrefix(file.Name(), file_name_prefix) {
 				allowed_files = append(allowed_files, file)
 			} else {
 				log.Println("[WARN]", "found not allowed filename=", file.Name(), "in REPORTS")
@@ -82,7 +88,7 @@ func ReportCreator(site_name string) {
 			log.Println("[ERROR]", "no allowed files to edit in folder:", reports_dir)
 			os.Exit(1)
 		}
-		prev_report_file := allowed_files[len(allowed_files) -1 ].Name()
+		prev_report_file := allowed_files[len(allowed_files)-1 ].Name()
 		log.Println("[INFO]", "last report file with index = -1", prev_report_file)
 
 		templateFile, err := excelize.OpenFile(reports_dir + prev_report_file)
@@ -100,7 +106,7 @@ func ReportCreator(site_name string) {
 		log.Println("[INFO]", "start_row", start_row)
 		datetime := XlsxPrepare(templateFile, start_row)
 		last_report_file := file_name_prefix + datetime + ".xlsx"
-		if last_report_file == prev_report_file{
+		if last_report_file == prev_report_file {
 			log.Println("[ERROR]", "trying to overite exist file (posible reason: reused data in CSV or STAT dir)")
 			os.Exit(1)
 		}
@@ -110,7 +116,7 @@ func ReportCreator(site_name string) {
 }
 
 // call perl script
-func call_script(profile string)  {
+func call_script(profile string) {
 	profile = "--profile=.\\SCRIPTS\\" + profile
 	log.Println("[INFO]", "calling PERL script")
 	cmd := exec.Command("cmd", "/C", ".\\SCRIPTS\\wxp.pl", "--file=STAT", "--outdir=CSV", "--csv",
@@ -262,48 +268,28 @@ func check_CSV_dir() {
 	}
 }
 
-func cleanCSV_dir () {
+func cleanCSV_dir() {
 	csv_files, _ := ioutil.ReadDir(csv_dir)
 	//	delete CSV csv_files fromm CSV dir
-		if  ! *keepCSV {
-			for _, file := range csv_files {
-				file_name := csv_dir + file.Name()
-				log.Println("[INFO]", "removing from CSV dir file=", file_name)
-				os.Remove(file_name)
-			}
+	if ! *keepCSV {
+		for _, file := range csv_files {
+			file_name := csv_dir + file.Name()
+			log.Println("[INFO]", "removing from CSV dir file=", file_name)
+			os.Remove(file_name)
 		}
-
+	}
 
 }
 
-var help_message =
-	"for work should be predifined folder structure\n" +
-"   ./   \n" +
-"    │   com_obj.exe\n" +
-"    │\n" +
-"    ├───CSV\n" +
-"    ├───REPORTS\n" +
-"    ├───SCRIPTS\n" +
-"    │       my.ref2.safmm.910.2Greport.counters\n" +
-"    │       my.ref2.safmm.910.3Greport.counters\n" +
-"    │       SGSN_template.xlsx\n" +
-"    │       wxp.pl\n" +
-"    │\n" +
-"    └───STAT\n"
+func generateStat(site_name string) {
+	parse_stat_files()
+	check_CSV_dir()
+	ReportCreator(site_name)
+	cleanCSV_dir()
 
-
-
-var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file (for debug purpose only)")
-var help = flag.Bool("help", false, "show long help info")
-var keepCSV = flag.Bool("keep-csv", false, "don't delete CSV files after process")
-var keepSTAT = flag.Bool("keep-stat", false, "don't remove files in STAT after process")
-var version = flag.Bool("v", false, "show version and exit")
-var csv_only = flag.Bool("csv-only", false, "proced only CSV files")
-var debug_flag = flag.String("d", "INFO", "debug level, available levels: " +
-	strings.Join(debug_levels, " "))
+}
 
 func main() {
-	flag.Parse()
 
 	// generate []logutils.LogLevel from []string
 	debug_levels_f := make([]logutils.LogLevel, len(debug_levels))
@@ -312,30 +298,13 @@ func main() {
 	}
 
 	filter := &logutils.LevelFilter{
-		Levels: []logutils.LogLevel(debug_levels_f),
-		MinLevel: logutils.LogLevel(*debug_flag),
-		Writer: os.Stderr,
+		Levels:   []logutils.LogLevel(debug_levels_f),
+		MinLevel: logutils.LogLevel(debug),
+		Writer:   os.Stderr,
 	}
 	log.SetOutput(filter)
 
 	site_name := set_site_name()
-
-	if *cpuprofile != "" {
-		f, err := os.Create(*cpuprofile)
-		check(err)
-		pprof.StartCPUProfile(f)
-		defer pprof.StopCPUProfile()
-	}
-
-	if *help {
-		fmt.Println(help_message)
-		os.Exit(0)
-	}
-
-	if *version {
-		fmt.Println(ver_string)
-		os.Exit(0)
-	}
 
 	if *keepCSV {
 		log.Println("[DEBUG]", "requested to keep CSV files")
@@ -346,9 +315,90 @@ func main() {
 		cleanCSV_dir()
 		os.Exit(0)
 	}
-	//------------------------------------------------
-	parse_stat_files()
-	check_CSV_dir()
-	ReportCreator(site_name)
-	cleanCSV_dir()
+	if auto_task {
+		//var hostKey ssh.PublicKey
+		task := int_libs.InitTask()
+
+		task.RootStatDIR = "/home/vtsymbal/stat/opt/5620sam/lte/stats"
+		//task.RootStatDIR = "/opt/5620sam/lte/stats"
+
+		connect.SshConnect = server.SSH()
+		connect.SFTP()
+		_sftp := connect.SftpConnect
+
+		cwd, err := _sftp.Getwd()
+		check(err)
+		log.Println("[INFO]", "working directory:", cwd)
+		task.HomeDir = cwd
+		task.GetSftpInfo(_sftp)
+		for true {
+			count := 0
+			stat_files_number := task.GenerateFileList(_sftp)
+			log.Println("[DEBUG]", "number of stat files=", stat_files_number)
+			if stat_files_number > 0 {
+				count = 0
+				log.Println("[INFO]", "number of stat files=", stat_files_number)
+				log.Println("[DEBUG]", "stat file list", task.FilesToRecive)
+				task.CompressFiles(connect)
+				if err := connect.SftpCopy(task.HomeDir+"/"+task.FileArch, stat_dir+task.FileArch); err == nil {
+					// TODO: could be better get from local
+					task.FileLastRecived = task.FilesToRecive[len(task.FilesToRecive)-1]
+					if err := _sftp.Remove(task.HomeDir + "/" + task.FileArch); err != nil {
+						log.Println("[ERROR]", "could not delete SRS file:", err)
+					} else {
+						log.Println("[INFO]", "SRC file deleted")
+					}
+				} else {
+					log.Println("[ERROR]", "could not complete copy:", err)
+				}
+				switch *interval {
+				default:
+					generateStat(site_name)
+				case 15:
+					generateStat(site_name)
+				case 30:
+					if fileTime, err := time.Parse(int_libs.SAM_file_time, strings.Split(task.FileLastRecived, "+")[0]);
+						err == nil && (fileTime.Minute() == intervals[30][0] || fileTime.Minute() == intervals[30][1]){
+						generateStat(site_name)
+					} else {
+						log.Println("[DEBUG]", "no file for INTERVAL == 30")
+					}
+				case 60:
+					if fileTime, err := time.Parse(int_libs.SAM_file_time, strings.Split(task.FileLastRecived, "+")[0]);
+						err == nil && fileTime.Minute() == intervals[60][0] {
+						generateStat(site_name)
+					}else {
+						log.Println("[DEBUG]", "no file for INTERVAL == 60")
+					}
+				}
+				task.FilesToRecive = []string{}
+				// restart new loop if success previous files received
+				if fileTime, err := time.Parse(int_libs.SAM_file_time, strings.Split(task.FileLastRecived, "+")[0]);
+					err == nil && fileTime.Add(15*time.Minute) == task.Stop {
+					log.Println("[INFO]", "FileLastRecived + 15 min == task.Stop")
+					log.Println("[DEBUG]", "fileTime:", fileTime, "task.Stop", task.Stop)
+					break
+				} else {
+					continue
+				}
+			}
+
+			if fileTime, err := time.Parse(int_libs.SAM_file_time, strings.Split(task.FileLastRecived, "+")[0]);
+				err == nil && fileTime.Add(15*time.Minute) == task.Stop {
+				log.Println("[INFO]", "FileLastRecived + 15 min == task.Stop")
+				log.Println("[DEBUG]", "fileTime:", fileTime, "task.Stop", task.Stop)
+				break
+			} else {
+				log.Println("[DEBUG]", "waiting", wait_time, "for new stat file")
+				// TODO: print count of loop instead "."
+				fmt.Print(count, " ")
+				time.Sleep(wait_time)
+			}
+		}
+
+	} else {
+		//------------------------------------------------
+		generateStat(site_name)
+
+	}
 }
