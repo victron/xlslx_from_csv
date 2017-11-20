@@ -4,11 +4,9 @@
 just a simple automation of work. 
 `wxp.pl` - script parsing stat files witch located in `STAT` dir, and creates csv files and put them into `CSV` dir.
 After those action need to create **xlsx**  files. 
-~~To avoid errors with **xlsx** files, it's possible to create it using [COM Interface](https://msdn.microsoft.com/en-us/library/windows/desktop/ff485850(v=vs.85).aspx) -~~
 
 ## Requirements
-~~- Only Windows platform (in reason **COM**)~~
-~~- installed MS Office~~
+
 - `wxp.pl` - perl script ()
 - configuration files for perl script 
     - hardcoded in code 
@@ -30,13 +28,12 @@ After those action need to create **xlsx**  files.
     └───STAT                                        
                                                     
 ```
+## Auto mode
+`auto` subcommand allows to download files automatically and parse when file is available
+`auto -h` to get help  
+
 ## Known issues and limitations
-- `Old format or invalid type library`
-    - as workaround need to set regional settings on Windows to `en-US`
-    - Too complicated to resolve in code [System.Globalization.CultureInfo](https://github.com/go-ole/go-ole/issues/145)
-- `panic: CoInitialize has not been called.`
-    - problem in access to file which is already open
-    - find in **TASK MANAGER** process **EXCEL** and kill it
+
 ## Dependencies
 [github.com/go-ole/go-ole](https://github.com/go-ole/go-ole)
 
@@ -44,10 +41,7 @@ After those action need to create **xlsx**  files.
 `-help | --help` - show long help description
 
 ## References
-[Go lib for COM interface](https://github.com/go-ole/go-ole)
+[Go lib excelize](https://github.com/xuri/excelize)
 
-[wraper around go-ole](https://github.com/aswjh/excel)
-
-[another wraper around go-ole](https://github.com/nivrrex/excel/blob/master/excel.go)
 
  
