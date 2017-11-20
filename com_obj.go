@@ -25,6 +25,8 @@ import (
 
 const ver_string = "version = 0.4.0, build date = 2017-11-19"
 const wait_time = time.Minute
+const RootStatDIR = "/opt/5620sam/lte/stats"
+//const RootStatDIR = "/home/vtsymbal/stat/opt/5620sam/lte/stats"
 
 var cwd, _ = os.Getwd()
 var reports_dir = cwd + "\\REPORTS\\"
@@ -319,8 +321,7 @@ func main() {
 		//var hostKey ssh.PublicKey
 		task := int_libs.InitTask()
 
-		task.RootStatDIR = "/home/vtsymbal/stat/opt/5620sam/lte/stats"
-		//task.RootStatDIR = "/opt/5620sam/lte/stats"
+		task.RootStatDIR = RootStatDIR
 
 		connect.SshConnect = server.SSH()
 		connect.SFTP()
@@ -391,7 +392,8 @@ func main() {
 			} else {
 				log.Println("[DEBUG]", "waiting", wait_time, "for new stat file")
 				// TODO: print count of loop instead "."
-				fmt.Print(count, " ")
+				count ++
+				fmt.Print(wait_time * time.Duration(count), "")
 				time.Sleep(wait_time)
 			}
 		}
